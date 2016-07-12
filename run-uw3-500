@@ -1,10 +1,10 @@
 #!/bin/bash
 set -x
 set -a
-test -d book || {
-    wget -nd http://tmbdev.net/ocrdata/uw3-500.tgz
-    tar -xzf uw3-500.tgz
-}
+#test -d book || {
+ #   wget -nd http://tmbdev.net/ocrdata/uw3-500.tgz
+  #  tar -xzf uw3-500.tgz
+#}
 find book -name '*.bin.png' | sort -r > uw3-all
 sed 1,50d uw3-all > uw3-train
 sed 50q uw3-all > uw3-test
@@ -15,10 +15,10 @@ dewarp=center
 display_every=10
 test_every=10000
 display_every=100
-testset=uw3-test.h5
-hidden=100
+#testset=uw3-test.h5
+nhidden=100
 lrate=1e-4
-save_name=uw3-500
+save_name=uw3-TESTALL-
 report_time=1
 # gdb --ex run --args \
 ./clstmocrtrain uw3-train uw3-test
