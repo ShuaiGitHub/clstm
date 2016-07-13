@@ -110,8 +110,8 @@ int main1(int argc, char **argv) {
     Codec codec;
     trainingset.getCodec(codec);
     print("got", codec.size(), "classes");
-
-    clstm.target_height = int(getrenv("target_height", 48));
+    // change to default height 32 in the paper, July 12
+    clstm.target_height = int(getrenv("target_height", 32));
     clstm.createBidi(codec.codec, getienv("nhidden", 100));
     clstm.setLearningRate(getdenv("lrate", 1e-4), getdenv("momentum", 0.9));
   }
@@ -128,9 +128,9 @@ int main1(int argc, char **argv) {
   int start = clstm.net->attr.get("trial", getienv("start", -1)) + 1;
   if (start > 0) print("start", start);
 
-  Trigger test_trigger(getienv("test_every", 10000), -1, start);
+  Trigger test_trigger(getienv("test_every", 5000), -1, start);
   test_trigger.skip0();
-  Trigger save_trigger(getienv("save_every", 10000), ntrain, start);
+  Trigger save_trigger(getienv("save_every", 1000), ntrain, start);
   save_trigger.enable(save_name != "").skip0();
   Trigger report_trigger(getienv("report_every", 100), ntrain, start);
   Trigger display_trigger(getienv("display_every", 0), ntrain, start);
@@ -167,15 +167,15 @@ int main1(int argc, char **argv) {
       double errors = tse.first;
       double count = tse.second;
       test_error = errors / count;
-      print("ERROR", trial, test_error, "   ", errors, count);
-      if (test_error < best_error) {
-        best_error = test_error;
-        string fname = save_name + ".clstm";
-        print("saving best performing network so far", fname, "error rate: ",
-              best_error);
-        clstm.net->attr.set("trial", trial);
-        clstm.save(fname);
-      }
+      print("ERROR", trial, "   ", errors, count);
+      //if (test_error < best_error) {
+        //best_error = test_error;
+        //string fname = save_name + ".clstm";
+        //print("saving best performing network so far", fname, "error rate: ",
+          //    best_error);
+        //clstm.net->attr.set("trial", trial);
+        //clstm.save(fname);
+      //}
     }
 
     if (save_trigger(trial)) {
