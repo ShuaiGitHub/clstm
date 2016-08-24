@@ -2,6 +2,7 @@
 set -x
 set -a
 report_every=100
+target_height=48
 save_every=100
 ntrain=1000000
 dewarp=center
