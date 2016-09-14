@@ -1,9 +1,9 @@
-##	How to install prerequist and training on other systems
+##	How to install prerequist and training on other computers
 
 As a practice to run it on Wen's system so we can train on different computers. I install pre-requist for Ubuntu 14.04
 
-run following commands first:
-  sudo apt-get install mercurial
+run following commands first (from original source)
+  sudo apt-get install mercurial (This install's hg command)
   sudo apt-get install libprotobuf-dev protobuf-compiler
   sudo apt-get install libzmq3-dev libzmq3 libzmqpp-dev libzmqpp3 libpng12-dev
   cd /usr/local/include
