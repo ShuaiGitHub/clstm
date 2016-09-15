@@ -47,7 +47,8 @@ int main1(int argc, char **argv) {
   if (load_name == "") THROW("must give load= parameter");
   CLSTMOCR clstm;
   clstm.load(load_name);
-
+  clstm.target_height=32;
+  cout<<clstm.target_height<<endl;
   bool conf = getienv("conf", 0);
   string output = getsenv("output", "text");
   bool save_text = getienv("save_text", 1);
