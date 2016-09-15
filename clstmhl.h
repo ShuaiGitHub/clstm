@@ -146,7 +146,8 @@ struct CLSTMText {
 struct CLSTMOCR {
   shared_ptr<INormalizer> normalizer;
   Network net;
-  int target_height = 48;
+  // A bug!!!! Sep 15th, 2016 needs to manual correct
+  int target_height = 32;
   int nclasses = -1;
   Sequence aligned, targets;
   Tensor2 image;
