@@ -16,3 +16,5 @@ build/
 *.tgz
 *book/
 *.clstm
+*.zip
+*.txt
