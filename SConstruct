@@ -122,7 +122,7 @@ libclstm = env.StaticLibrary("clstm", libsrc)
 
 all = [libclstm]
 
-programs = """clstmocrShort""".split()
+programs = """clstmocrtrain""".split()
 for program in programs:
     all += [env.Program(program, [program + ".cc"], LIBS=[libclstm] + libs)]
     Default(program)
