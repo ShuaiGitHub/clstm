@@ -1,4 +1,4 @@
-#include "clstm.h"
+#include "clstm.h"//
 #include <assert.h>
 #include <math.h>
 #include <fstream>
@@ -14,8 +14,8 @@
 #include "pstring.h"
 #include "utils.h"
 
-using namespace Eigen;
-using namespace ocropus;
+using namespace Eigen;// Eigen namespace
+using namespace ocropus;// saves all namespace
 using std::vector;
 using std::map;
 using std::make_pair;
@@ -54,9 +54,9 @@ wstring separate_chars(const wstring &s, const wstring &charsep) {
 }
 
 struct Dataset {
-  vector<string> fnames;
-  wstring charsep = utf8_to_utf32(getsenv("charsep", ""));
-  int size() { return fnames.size(); }
+  vector<string> fnames;// stores file names for a fixed data
+  wstring charsep = utf8_to_utf32(getsenv("charsep", ""));// get character seperators
+  int size() { return fnames.size(); }// return the size of the file
   Dataset() {}
   Dataset(string file_list) { readFileList(file_list); }
   void readFileList(string file_list) { read_lines(fnames, file_list); }
