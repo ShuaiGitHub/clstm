@@ -74,10 +74,10 @@ struct Dataset {
   }
 };
 
-pair<double, double> test_set_error(CLSTMOCR &clstm, Dataset &testset) {
+pair<double, double> test_set_error(CLSTMOCR &clstm, Dataset &testset) {// get test set errors given a data set structure
   double count = 0.0;
   double errors = 0.0;
-  for (int test = 0; test < testset.size(); test++) {
+  for (int test = 0; test < testset.size(); test++) {// go through all samples in the test data set.
     Tensor2 raw;
     wstring gt;
     testset.readSample(raw, gt, test);

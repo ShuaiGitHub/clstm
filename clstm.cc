@@ -265,7 +265,7 @@ void Codec::build(const vector<string> &fnames, const wstring &extra) {
   for (int i = 1; i < codec.size(); i++) assert(codec[i] > codec[i - 1]);
   this->set(codec);
 }
-
+// This function prints out network info of the given LSTM network
 void network_info(Network net, string prefix) {
   string nprefix = prefix + "." + net->kind;
   Float learning_rate = net->attr.get("learning_rate");
