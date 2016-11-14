@@ -80,6 +80,7 @@ struct Dataset {
     codec_file_names.push_back(code_name);
     codec.build(codec_file_names, charsep);
   }
+  // read a sample image into tensor flow format
   void readSample(Tensor2 &raw, wstring &gt, int index) {
     string fname = fnames[index];
     string base = basename(fname);
@@ -88,7 +89,7 @@ struct Dataset {
     raw() = -raw() + Float(1);
   }
 };
-
+// get errors of a test set images.
 pair<double, double> test_set_error(CLSTMOCR &clstm, Dataset &testset) {
   double count = 0.0;
   double errors = 0.0;
@@ -102,20 +103,35 @@ pair<double, double> test_set_error(CLSTMOCR &clstm, Dataset &testset) {
   }
   return make_pair(count, errors);
 }
-
+bool whetherStopEpoch(double prev, double current, const double threshold) {
+   if (abs(current-prev) <=threshold) {
+     return true;
+   }
+   else {
+     return false;
+   }
+}
 int main1(int argc, char **argv) {
   int ntrain = getienv("ntrain", 10000000);
   string save_name = getsenv("save_name", "_ocr");
   int report_time = getienv("report_time", 0);
-
+  // make sure arguments are accurate and correct
+  /*
+    argument 0: command name
+  */
   if (argc < 4 || argc > 5) THROW("... training [testing]");
   int count = 0;
   //if (argc == 4 ) testset.readFileList(argv[4]);
   //print("got", trainingset.size(), "files,", testset.size(), "tests");
-
+  // Below are code checks to make sure the random function works
+  int batch_size = atoi(argv[2]);// the random size K for training
+  int epoch_number = atoi(argv[3]);// The maximal epoch number
+  double threshold = atoi(argv[4]);// the threshold that stops training
+  print (batch_size," is the set batch size",epoch_number,"is the repeated epoch");
   string load_name = getsenv("load", "");
   CLSTMOCR clstm;
   load_name ="";// saved for loading other models
+  ////////// Load the model
   if (load_name != "") {
     clstm.load(load_name);
   } else {
@@ -132,11 +148,13 @@ int main1(int argc, char **argv) {
     clstm.createBidi(codec.codec, getienv("nhidden", 100));
     clstm.setLearningRate(getdenv("lrate", 1e-4), getdenv("momentum", 0.9));
   }
+  ////////// Load the model
+
   network_info(clstm.net);
   print ("the model setup is done!");
   double test_error = 9999.0;
   double best_error = 1e38;
-
+  double prev_error = 9999.0;
 //#ifndef NODISPLAY
 //  PyServer py;
 //  if (display_every > 0) py.open();
@@ -154,10 +172,7 @@ int main1(int argc, char **argv) {
   vector<string> current_batch;
   vector<string> all_possible_files;
   read_lines(all_possible_files,argv[1]);//read all current available files
-  // Below are code checks to make sure the random function works
-  int batch_size = atoi(argv[2]);// the random size K for training
-  int epoch_number = atoi(argv[3]);
-  print (batch_size," is the set batch size",epoch_number,"is the repeated epoch");
+
   for (int i = 0; i < batch_size; i++) {
     current_batch.emplace_back(all_possible_files[i]);
   }
@@ -166,25 +181,35 @@ int main1(int argc, char **argv) {
   for (int i = 0; i<current_batch.size();i++) {
     cout<<current_batch[i]<<" "<<i<<endl;
   }
+  vector<string>::const_iterator first = current_batch.end()-20;
+  vector<string>::const_iterator last = current_batch.end();
+  vector<string> testSet(first, last);
   Dataset trainingset(current_batch);
+  Dataset testset(testSet);
   cout<<"reading "<<batch_size<< " files for training now"<<endl;
   assert(trainingset.size() > 0);
-  for (int epoch_count = 1; epoch_count <= epoch_number; epoch_count++) {
+  for (int epoch_count = 1; epoch_count <= epoch_number&&whetherStopEpoch(prev_error,current_error,threshold); epoch_count++) {
     for (int trial_count = 0; trial_count <batch_size;trial_count++){
     Tensor2 raw;
     wstring gt;
-    trainingset.readSample(raw, gt, trial_count);
-    wstring pred = clstm.train(raw(), gt);
-    if (trial_count%10 == 0) {
+    //trainingset.readSample(raw, gt, trial_count);
+    // this line of code throw one training example
+    //wstring pred = clstm.train(raw(), gt);
+    //if (trial_count%10 == 0) {
 
-      print("GTH: ", gt);
-      print("ALN: ", clstm.aligned_utf8());
-      print("PDT: ", utf32_to_utf8(pred));
-    }
+      //print("GTH: ", gt);
+      //print("ALN: ", clstm.aligned_utf8());
+      //print("PDT: ", utf32_to_utf8(pred));
+    //}
     }
     trainingset.randomFiles();
     trainingset.printFiles(epoch_count);
-
+    auto tse = test_set_error(clstm, testSet);
+    double errors = tse.first;
+    double count = tse.second;
+    test_error = errors / count;
+    current_error = test_error;
+    prev_error = current_error;
   }
   return 0;
 }
