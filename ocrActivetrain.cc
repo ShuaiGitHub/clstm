@@ -156,6 +156,7 @@ int main1(int argc, char **argv) {
   double best_error = 1e38;
   double prev_error = 9999.0;
   double current_error = 0.0;;
+  long stepCount = 0;
   vector<string> current_batch;
   vector<string> all_possible_files;
   read_lines(all_possible_files,argv[1]);//read all current available files
@@ -187,8 +188,9 @@ int main1(int argc, char **argv) {
     trainingset.readSample(raw, gt, trial_count);
     // this line of code throw one training example
     wstring pred = clstm.train(raw(), gt);
-    if (trial_count%100 == 0) {
-
+    stepCount++;// every time it throws
+    if (trial_count%1000 == 0) {
+      cout<<"Current training step is "<<  stepCount<<endl;
       print("GTH: ", gt);
       print("ALN: ", clstm.aligned_utf8());
       print("PDT: ", utf32_to_utf8(pred));
@@ -207,7 +209,7 @@ int main1(int argc, char **argv) {
     } else {
       stopFlag = false;
     }
-    cout<<"current validation set error is "<<test_error*100<<"%"<<endl;
+    cout<<"current validation set error is "<<errors<<"with total chars"<<count<<endl;
   }
   return 0;
 }
