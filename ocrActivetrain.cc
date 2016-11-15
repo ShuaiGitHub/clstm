@@ -155,20 +155,7 @@ int main1(int argc, char **argv) {
   double test_error = 9999.0;
   double best_error = 1e38;
   double prev_error = 9999.0;
-//#ifndef NODISPLAY
-//  PyServer py;
-//  if (display_every > 0) py.open();
-//#endif
-  //double start_time = now();
-  //int start = clstm.net->attr.get("trial", getienv("start", -1)) + 1;
-  //if (start > 0) print("start", start);
-  //start
-  //Trigger test_trigger(getienv("test_every", 5000), -1, start);
-  //test_trigger.skip0();
-  //Trigger save_trigger(getienv("save_every", 1000), ntrain, start);
-  //save_trigger.enable(save_name != "").skip0();
-  //Trigger report_trigger(getienv("report_every", 100), ntrain, start);
-  //Trigger display_trigger(getienv("display_every", 0), ntrain, start);
+  double current_error = 0.0;;
   vector<string> current_batch;
   vector<string> all_possible_files;
   read_lines(all_possible_files,argv[1]);//read all current available files
@@ -181,35 +168,46 @@ int main1(int argc, char **argv) {
   for (int i = 0; i<current_batch.size();i++) {
     cout<<current_batch[i]<<" "<<i<<endl;
   }
-  vector<string>::const_iterator first = current_batch.end()-20;
-  vector<string>::const_iterator last = current_batch.end();
-  vector<string> testSet(first, last);
-  Dataset trainingset(current_batch);
-  Dataset testset(testSet);
+  double ratio = 0.8;
+  int partition = current_batch.size() * ratio;
+  vector<string> trainingSetFile(current_batch.begin(),current_batch.begin()+partition);
+  vector<string> validationSetFile(current_batch.begin()+partition,current_batch.end());
+
+  Dataset trainingset(trainingSetFile);
+  Dataset validationset(validationSetFile);
   cout<<"reading "<<batch_size<< " files for training now"<<endl;
+  cout<<trainingset.size()<<endl;
+  cout<<validationset.size()<<endl;
   assert(trainingset.size() > 0);
-  for (int epoch_count = 1; epoch_count <= epoch_number&&whetherStopEpoch(prev_error,current_error,threshold); epoch_count++) {
-    for (int trial_count = 0; trial_count <batch_size;trial_count++){
+  bool stopFlag = false;
+  for (int epoch_count = 1; epoch_count <= epoch_number; epoch_count++) {
+    for (int trial_count = 0; trial_count <trainingset.size()&&!stopFlag;trial_count++){
     Tensor2 raw;
     wstring gt;
-    //trainingset.readSample(raw, gt, trial_count);
+    trainingset.readSample(raw, gt, trial_count);
     // this line of code throw one training example
-    //wstring pred = clstm.train(raw(), gt);
-    //if (trial_count%10 == 0) {
+    wstring pred = clstm.train(raw(), gt);
+    if (trial_count%100 == 0) {
 
-      //print("GTH: ", gt);
-      //print("ALN: ", clstm.aligned_utf8());
-      //print("PDT: ", utf32_to_utf8(pred));
-    //}
+      print("GTH: ", gt);
+      print("ALN: ", clstm.aligned_utf8());
+      print("PDT: ", utf32_to_utf8(pred));
+    }
     }
     trainingset.randomFiles();
-    trainingset.printFiles(epoch_count);
-    auto tse = test_set_error(clstm, testSet);
+    //trainingset.printFiles(epoch_count);
+    auto tse = test_set_error(clstm, validationset);
     double errors = tse.first;
     double count = tse.second;
     test_error = errors / count;
     current_error = test_error;
     prev_error = current_error;
+    if (prev_error <=0.01&&current_error<=0.01) {
+        stopFlag = whetherStopEpoch(prev_error,current_error,threshold);
+    } else {
+      stopFlag = false;
+    }
+    cout<<"current validation set error is "<<test_error*100<<"%"<<endl;
   }
   return 0;
 }
