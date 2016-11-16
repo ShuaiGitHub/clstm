@@ -111,32 +111,14 @@ bool whetherStopEpoch(double prev, double current, const double threshold) {
      return false;
    }
 }
-int main1(int argc, char **argv) {
-  int ntrain = getienv("ntrain", 10000000);
-  string save_name = getsenv("save_name", "_ocr");
-  int report_time = getienv("report_time", 0);
-  // make sure arguments are accurate and correct
-  /*
-    argument 0: command name
-  */
-  if (argc < 4 || argc > 5) THROW("... training [testing]");
-  int count = 0;
-  //if (argc == 4 ) testset.readFileList(argv[4]);
-  //print("got", trainingset.size(), "files,", testset.size(), "tests");
-  // Below are code checks to make sure the random function works
-  int batch_size = atoi(argv[2]);// the random size K for training
-  int epoch_number = atoi(argv[3]);// The maximal epoch number
-  double threshold = atoi(argv[4]);// the threshold that stops training
-  print (batch_size," is the set batch size",epoch_number,"is the repeated epoch");
-  string load_name = getsenv("load", "");
-  CLSTMOCR clstm;
+void getModel(string load_name, CLSTMOCR &clstm) {
   load_name ="";// saved for loading other models
   ////////// Load the model
   if (load_name != "") {
     clstm.load(load_name);
   } else {
     Codec codec;
-    string file_name = "ascii-code.txt";// output classes are 96 printable characters.
+    string file_name = "ascii-code.txt";// output classes are 96 printable characters based on ascii.
     vector<string> codec_file_names;
     //get char seperator from the set-up class file
     wstring charsep = utf8_to_utf32(getsenv("charsep", ""));
@@ -148,7 +130,29 @@ int main1(int argc, char **argv) {
     clstm.createBidi(codec.codec, getienv("nhidden", 100));
     clstm.setLearningRate(getdenv("lrate", 1e-4), getdenv("momentum", 0.9));
   }
-  ////////// Load the model
+}
+int main1(int argc, char **argv) {
+  int ntrain = getienv("ntrain", 10000000);
+  string save_name = getsenv("save_name", "_ocr");
+  int report_time = getienv("report_time", 0);
+  // make sure arguments are accurate and correct
+  /*
+    argument 0: command name
+  */
+  if (argc < 5 || argc > 6) THROW("... training [testing]");
+  int count = 0;
+  //if (argc == 4 ) testset.readFileList(argv[4]);
+  //print("got", trainingset.size(), "files,", testset.size(), "tests");
+  // Below are code checks to make sure the random function works
+  const int batch_size = atoi(argv[2]);// the random size K for training
+  const int epoch_number = atoi(argv[3]);// The maximal epoch number
+  const double threshold = atoi(argv[4]);// the threshold that stops training
+  const double stopMetric = atoi(argv[5]);// this measure is used to detect whether the error rate is acceptable.
+  print (batch_size," is the set batch size",epoch_number,"is the repeated epoch");
+  string load_name = getsenv("load", "");
+  CLSTMOCR clstm;
+  getModel(load_name,clstm);
+  ////////// Load the model and initialization
 
   network_info(clstm.net);
   print ("the model setup is done!");
@@ -160,57 +164,65 @@ int main1(int argc, char **argv) {
   vector<string> current_batch;
   vector<string> all_possible_files;
   read_lines(all_possible_files,argv[1]);//read all current available files
-
-  for (int i = 0; i < batch_size; i++) {
-    current_batch.emplace_back(all_possible_files[i]);
-  }
-
-  std::random_shuffle(current_batch.begin(), current_batch.end());
-  for (int i = 0; i<current_batch.size();i++) {
-    cout<<current_batch[i]<<" "<<i<<endl;
-  }
-  double ratio = 0.8;
-  int partition = current_batch.size() * ratio;
-  vector<string> trainingSetFile(current_batch.begin(),current_batch.begin()+partition);
-  vector<string> validationSetFile(current_batch.begin()+partition,current_batch.end());
-
-  Dataset trainingset(trainingSetFile);
-  Dataset validationset(validationSetFile);
-  cout<<"reading "<<batch_size<< " files for training now"<<endl;
-  cout<<trainingset.size()<<endl;
-  cout<<validationset.size()<<endl;
-  assert(trainingset.size() > 0);
-  bool stopFlag = false;
-  for (int epoch_count = 1; epoch_count <= epoch_number; epoch_count++) {
-    for (int trial_count = 0; trial_count <trainingset.size()&&!stopFlag;trial_count++){
-    Tensor2 raw;
-    wstring gt;
-    trainingset.readSample(raw, gt, trial_count);
-    // this line of code throw one training example
-    wstring pred = clstm.train(raw(), gt);
-    stepCount++;// every time it throws
-    if (trial_count%1000 == 0) {
-      cout<<"Current training step is "<<  stepCount<<endl;
-      print("GTH: ", gt);
-      print("ALN: ", clstm.aligned_utf8());
-      print("PDT: ", utf32_to_utf8(pred));
+  int totalTimeStep = all_possible_files.size()/batch_size;
+  int current_time = 1;
+  while (current_time <= totalTimeStep) {
+    // feed additional time steps of files
+    for (int i = batch_size*(current_time-1); i < batch_size*current_time; i++) {
+      current_batch.emplace_back(all_possible_files[i]);
     }
+    //shuffle all possible files
+    std::random_shuffle(current_batch.begin(), current_batch.end());
+    assert(current_batch.size() == batch_size*current_time);
+    // partition files
+    double ratio = 0.8;
+    int partition = current_batch.size() * ratio;
+    vector<string> trainingSetFile(current_batch.begin(),current_batch.begin()+partition);
+    vector<string> validationSetFile(current_batch.begin()+partition,current_batch.end());
+
+    Dataset trainingset(trainingSetFile);
+    Dataset validationset(validationSetFile);
+    cout<<"reading "<<batch_size<< " files for training now"<<endl;
+    cout<<trainingset.size()<<endl;
+    cout<<validationset.size()<<endl;
+    assert(trainingset.size() > 0);
+    bool stopFlag = false;
+    for (int epoch_count = 1; epoch_count <= epoch_number&&!stopFlag; epoch_count++) {
+      for (int trial_count = 0; trial_count <trainingset.size();trial_count++){
+      Tensor2 raw;
+      wstring gt;
+      trainingset.readSample(raw, gt, trial_count);
+      // this line of code throw one training example
+      wstring pred = clstm.train(raw(), gt);
+      stepCount++;// every time it throws
+      if (trial_count%1000 == 0) {
+        cout<<"Current training step is "<<  stepCount<<endl;
+        print("GTH: ", gt);
+        print("ALN: ", clstm.aligned_utf8());
+        print("PDT: ", utf32_to_utf8(pred));
+      }
+      }
+      trainingset.randomFiles();
+      cout<<"we are at epoch "<<epoch_count<<endl;
+      //trainingset.printFiles(epoch_count);
+      auto tse = test_set_error(clstm, validationset);
+      double count = tse.first;
+      double errors = tse.second;
+      test_error = errors / count;
+      current_error = test_error;
+      prev_error = current_error;
+      if (prev_error <=0.02&&current_error<=0.02) {
+          stopFlag = whetherStopEpoch(prev_error,current_error,threshold);
+      } else {
+        stopFlag = false;
+      }
+      cout<<"current validation set error is "<<errors<<"; with total chars "<<count<<"; the error rate is "<< test_error * 100<<"%"<<endl;
+      print("~~~~~~~~~We are going to accept files from next time step.~~~~~~~~~~<<endl");
+      current_time++;
+      print("this is going to be step ", current_time);
     }
-    trainingset.randomFiles();
-    //trainingset.printFiles(epoch_count);
-    auto tse = test_set_error(clstm, validationset);
-    double errors = tse.first;
-    double count = tse.second;
-    test_error = errors / count;
-    current_error = test_error;
-    prev_error = current_error;
-    if (prev_error <=0.01&&current_error<=0.01) {
-        stopFlag = whetherStopEpoch(prev_error,current_error,threshold);
-    } else {
-      stopFlag = false;
-    }
-    cout<<"current validation set error is "<<errors<<"with total chars"<<count<<endl;
-  }
+}
+  print("All possible files have been used");
   return 0;
 }
 
