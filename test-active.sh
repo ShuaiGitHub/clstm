@@ -12,4 +12,4 @@ target_height=32
 lrate=1e-4
 save_name=active-training
 report_time=1000
-./ocrActivetrain Thurs-dpi-book-1020-train.txt 10000 1000 1e-4 0.01
+./ocrActivetrain Thurs-dpi-book-1020-train.txt 5000 100 1e-3 0.02

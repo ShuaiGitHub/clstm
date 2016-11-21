@@ -105,9 +105,11 @@ pair<double, double> test_set_error(CLSTMOCR &clstm, Dataset &testset) {
 }
 bool whetherStopEpoch(double prev, double current, const double threshold) {
    if (abs(current-prev) <=threshold) {
+     print("the current validation error is good enough!");
      return true;
    }
    else {
+     print("the current validation error is not good enough...");
      return false;
    }
 }
@@ -155,12 +157,15 @@ int main1(int argc, char **argv) {
   ////////// Load the model and initialization
 
   network_info(clstm.net);
+  int start_trial = 0;
+  int current_stepCount = clstm.net->attr.get("trial",start_trial);
+  print(current_stepCount);
   print ("the model setup is done!");
   double test_error = 9999.0;
   double best_error = 1e38;
   double prev_error = 9999.0;
   double current_error = 0.0;;
-  long stepCount = 0;
+  int stepCount = 0;
   vector<string> current_batch;
   vector<string> all_possible_files;
   read_lines(all_possible_files,argv[1]);//read all current available files
@@ -187,42 +192,52 @@ int main1(int argc, char **argv) {
     cout<<validationset.size()<<endl;
     assert(trainingset.size() > 0);
     bool stopFlag = false;
-    for (int epoch_count = 1; epoch_count <= epoch_number&&!stopFlag; epoch_count++) {
-      for (int trial_count = 0; trial_count <trainingset.size();trial_count++){
-      Tensor2 raw;
-      wstring gt;
-      trainingset.readSample(raw, gt, trial_count);
-      // this line of code throw one training example
-      wstring pred = clstm.train(raw(), gt);
-      stepCount++;// every time it throws
-      if (trial_count%1000 == 0) {
-        cout<<"Current training step is "<<  stepCount<<endl;
-        print("GTH: ", gt);
-        print("ALN: ", clstm.aligned_utf8());
-        print("PDT: ", utf32_to_utf8(pred));
-      }
-      }
-      trainingset.randomFiles();
-      cout<<"we are at epoch "<<epoch_count<<endl;
-      //trainingset.printFiles(epoch_count);
-      auto tse = test_set_error(clstm, validationset);
-      double count = tse.first;
-      double errors = tse.second;
-      test_error = errors / count;
-      current_error = test_error;
-      prev_error = current_error;
-      if (prev_error <=0.02&&current_error<=0.02) {
-          stopFlag = whetherStopEpoch(prev_error,current_error,threshold);
-      } else {
-        stopFlag = false;
-      }
-      cout<<"current validation set error is "<<errors<<"; with total chars "<<count<<"; the error rate is "<< test_error * 100<<"%"<<endl;
-      print("~~~~~~~~~We are going to accept files from next time step.~~~~~~~~~~<<endl");
-      current_time++;
-      print("this is going to be step ", current_time);
+    for (int epoch_count = 1; epoch_count <= epoch_number&& stopFlag!=true; epoch_count++) {
+        // train an epoch's files
+        for (int trial_count = 0; trial_count <trainingset.size();trial_count++){
+          Tensor2 raw;
+          wstring gt;
+          trainingset.readSample(raw, gt, trial_count);
+          // this line of code throw one training example
+          wstring pred = clstm.train(raw(), gt);
+          stepCount++;// every time it throws
+          if (trial_count%1000 == 0) {
+            cout<<"Current training step is "<<  stepCount<<endl;
+            print("GTH: ", gt);
+            print("ALN: ", clstm.aligned_utf8());
+            print("PDT: ", utf32_to_utf8(pred));
+          }
+        }
+        trainingset.randomFiles();
+
+        print("The training files we have now: ", trainingset.size());
+        //trainingset.printFiles(epoch_count);
+        auto tse = test_set_error(clstm, validationset);
+        double count = tse.first;
+        double errors = tse.second;
+        test_error = errors / count;
+        current_error = test_error;
+        prev_error = current_error;
+        // check whether to stop the current training
+        if (prev_error <= stopMetric && current_error <= stopMetric) {
+            stopFlag = whetherStopEpoch(prev_error,current_error,threshold);
+        } else {
+          stopFlag = false;
+        }
+        // report the current epoch's validation error
+        cout<<"we finished epoch "<<epoch_count<<endl;
+        cout<<"current validation set error is "<<errors<<"; with total chars "<<count<<"; the error rate is "<< test_error * 100<<"%"<<endl;
     }
+    print("~~~~~~~~~We are going to accept files from next time step.~~~~~~~~~~<<endl");
+    current_time++;
+    print("this is going to be time step ", current_time);
 }
   print("All possible files have been used");
+
+  string fname = save_name + "-" + to_string(stepCount) + ".clstm";
+  print("saving", fname);
+  clstm.net->attr.set("trial", stepCount);
+  clstm.save(fname);
   return 0;
 }
 
